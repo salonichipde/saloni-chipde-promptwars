@@ -62,6 +62,11 @@ async function callGemini(input) {
  if (!res.ok) {
   const errorText = await res.text();
   console.log("GEMINI ERROR:", errorText);
+
+  if (res.status === 503) {
+    throw new Error("Gemini is temporarily busy. Please try again.");
+  }
+
   throw new Error(`Gemini request failed (${res.status})`);
 }
 
@@ -84,6 +89,20 @@ function mockAnalysis({ decision, options, leaning }) {
 }
 
 export async function analyze(input) {
-  if (!process.env.GEMINI_API_KEY) return { mock: true, analysis: mockAnalysis(input) };
-  return { mock: false, analysis: await callGemini(input) };
+  if (!process.env.GEMINI_API_KEY) {
+    return { mock: true, analysis: mockAnalysis(input) };
+  }
+
+  try {
+    return { mock: false, analysis: await callGemini(input) };
+  } catch (error) {
+    console.log("Gemini unavailable, using demo fallback:", error.message);
+
+    return {
+      mock: true,
+      analysis: mockAnalysis(input),
+      fallback: true,
+      message: "AI service is temporarily busy. Showing demo analysis."
+    };
+  }
 }
